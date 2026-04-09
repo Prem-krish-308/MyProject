@@ -1,59 +1,40 @@
 pipeline {
     agent any
 
-    environment {
-        // Defines the name of the final binary based on your CMake setup
-        APP_NAME = "MyProject"
-        BUILD_DIR = "build"
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Check Tools') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Prepare') {
-            steps {
-                // Ensure the build directory exists (it is ignored by git)
-                bat "mkdir -p ${BUILD_DIR}"
+                // This will tell us if Jenkins can actually "see" your tools
+                bat 'cmake --version'
             }
         }
 
         stage('Build') {
             steps {
-                dir("${BUILD_DIR}") {
-                    bat 'cmake ..'
-                    bat 'make'
-                }
+                // 'if not exist' is the safe way to handle directories in Windows bat
+                bat """
+                    if not exist build mkdir build
+                    cd build
+                    cmake ..
+                    cmake --build . --config Release
+                """
             }
         }
 
-        stage('Unit Test') {
+        stage('Test') {
             steps {
-                dir("${BUILD_DIR}") {
-                    // Executes the tests found in the tests/ directory
-                    bat 'ctest --output-on-failure'
-                }
+                bat """
+                    cd build
+                    ctest --output-on-failure
+                """
             }
         }
 
-        stage('Archive Artifacts') {
+        stage('Archive') {
             steps {
-                // This "creates an artifactory" inside Jenkins for this build.
-                // It saves the compiled binary so it can be downloaded later.
-                archiveArtifacts artifacts: "${BUILD_DIR}/${APP_NAME}", fingerprint: true
+                // Note: Windows builds often put the .exe in a 'Release' or 'Debug' folder
+                archiveArtifacts artifacts: 'build/**/*.exe', fingerprint: true
             }
-        }
-    }
-
-    post {
-        success {
-            echo "Successfully built and archived ${APP_NAME}."
-        }
-        failure {
-            echo "Build failed. Check the console output for CMake or GTest errors."
         }
     }
 }
