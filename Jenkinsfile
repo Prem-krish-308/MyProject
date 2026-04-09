@@ -17,15 +17,15 @@ pipeline {
         stage('Prepare') {
             steps {
                 // Ensure the build directory exists (it is ignored by git)
-                sh "mkdir -p ${BUILD_DIR}"
+                bat "mkdir -p ${BUILD_DIR}"
             }
         }
 
         stage('Build') {
             steps {
                 dir("${BUILD_DIR}") {
-                    sh 'cmake ..'
-                    sh 'make'
+                    bat 'cmake ..'
+                    bat 'make'
                 }
             }
         }
@@ -34,7 +34,7 @@ pipeline {
             steps {
                 dir("${BUILD_DIR}") {
                     // Executes the tests found in the tests/ directory
-                    sh 'ctest --output-on-failure'
+                    bat 'ctest --output-on-failure'
                 }
             }
         }
