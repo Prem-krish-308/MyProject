@@ -1,50 +1,59 @@
 pipeline {
     agent any
 
+    environment {
+        // Defines the name of the final binary based on your CMake setup
+        APP_NAME = "MyProject"
+        BUILD_DIR = "build"
+    }
+
     stages {
-        stage('Initialize') {
+        stage('Checkout') {
             steps {
-                // Creates the build directory if it doesn't exist
-                sh 'mkdir -p build'
+                checkout scm
+            }
+        }
+
+        stage('Prepare') {
+            steps {
+                // Ensure the build directory exists (it is ignored by git)
+                sh "mkdir -p ${BUILD_DIR}"
             }
         }
 
         stage('Build') {
             steps {
-                dir('build') {
-                    // 1. Run CMake pointing to the root CMakeLists.txt
-                    // 2. Compile the project
+                dir("${BUILD_DIR}") {
                     sh 'cmake ..'
                     sh 'make'
                 }
             }
         }
 
-        stage('Test') {
+        stage('Unit Test') {
             steps {
-                dir('build') {
-                    // Runs the tests defined in tests/CMakeLists.txt
-                    // and registered via add_test
+                dir("${BUILD_DIR}") {
+                    // Executes the tests found in the tests/ directory
                     sh 'ctest --output-on-failure'
                 }
             }
         }
 
-        stage('Deploy/Archive') {
+        stage('Archive Artifacts') {
             steps {
-                // Archives the resulting binary from the build folder
-                archiveArtifacts artifacts: 'build/MyProject', fingerprint: true
+                // This "creates an artifactory" inside Jenkins for this build.
+                // It saves the compiled binary so it can be downloaded later.
+                archiveArtifacts artifacts: "${BUILD_DIR}/${APP_NAME}", fingerprint: true
             }
         }
     }
 
     post {
-        always {
-            echo 'Cleaning up workspace...'
-            // Optional: cleans up build artifacts after the run
+        success {
+            echo "Successfully built and archived ${APP_NAME}."
         }
         failure {
-            echo 'Build or Tests failed. Please check the console output.'
+            echo "Build failed. Check the console output for CMake or GTest errors."
         }
     }
 }
